@@ -1,0 +1,110 @@
+{
+	"name": "empiriolabs-vscode-chat",
+	"displayName": "EmpirioLabs AI for Copilot Chat",
+	"description": "Use EmpirioLabs AI models in GitHub Copilot Chat, with streaming, tool calling for agent mode and image input.",
+	"version": "0.1.0",
+	"publisher": "empiriolabs",
+	"license": "MIT",
+	"icon": "assets/icon.png",
+	"homepage": "https://empiriolabs.ai",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/EmpirioLabs-AI/vscode-empiriolabs"
+	},
+	"bugs": {
+		"url": "https://github.com/EmpirioLabs-AI/vscode-empiriolabs/issues"
+	},
+	"galleryBanner": {
+		"color": "#000815",
+		"theme": "dark"
+	},
+	"engines": {
+		"vscode": "^1.109.0"
+	},
+	"categories": [
+		"AI",
+		"Chat"
+	],
+	"keywords": [
+		"language-models",
+		"empiriolabs",
+		"copilot",
+		"copilot-chat",
+		"github-copilot",
+		"byok",
+		"chat",
+		"agent",
+		"llm",
+		"ai",
+		"deepseek",
+		"qwen",
+		"glm",
+		"kimi",
+		"minimax"
+	],
+	"extensionKind": [
+		"ui",
+		"workspace"
+	],
+	"capabilities": {
+		"untrustedWorkspaces": {
+			"supported": true
+		},
+		"virtualWorkspaces": true
+	},
+	"main": "./out/extension.js",
+	"contributes": {
+		"languageModelChatProviders": [
+			{
+				"vendor": "empiriolabs",
+				"displayName": "EmpirioLabs AI",
+				"configuration": {
+					"properties": {
+						"apiKey": {
+							"type": "string",
+							"secret": true,
+							"title": "API Key",
+							"description": "Your EmpirioLabs AI API key. It starts with sk-empiriolabs- and is created at https://platform.empiriolabs.ai/dashboard/api-keys"
+						}
+					},
+					"required": [
+						"apiKey"
+					]
+				}
+			}
+		],
+		"commands": [
+			{
+				"command": "empiriolabs.manageApiKey",
+				"title": "Manage API Key",
+				"category": "EmpirioLabs AI"
+			},
+			{
+				"command": "empiriolabs.refreshModels",
+				"title": "Refresh Models",
+				"category": "EmpirioLabs AI"
+			}
+		]
+	},
+	"scripts": {
+		"vscode:prepublish": "npm run clean && npm run compile",
+		"clean": "node -e \"require('node:fs').rmSync('out',{recursive:true,force:true})\"",
+		"compile": "tsc -p ./",
+		"watch": "tsc -watch -p ./",
+		"test": "npm run compile && npm run test:unit",
+		"test:unit": "mocha --require ./out/test/setup.js \"out/test/unit/**/*.test.js\"",
+		"test:integration": "npm run compile && node ./out/test/integration/runTests.js",
+		"smoke:live": "npm run compile && node --require ./out/test/setup.js ./out/test/smoke/liveSmoke.js",
+		"package": "vsce package"
+	},
+	"devDependencies": {
+		"@types/mocha": "10.0.10",
+		"@types/node": "22.20.5",
+		"@types/vscode": "1.109.0",
+		"@vscode/test-electron": "3.1.0",
+		"@vscode/vsce": "4.0.0",
+		"mocha": "12.0.3",
+		"ovsx": "1.3.0",
+		"typescript": "5.9.3"
+	}
+}
