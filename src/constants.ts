@@ -35,5 +35,12 @@ export const DEFAULT_MAX_OUTPUT_TOKENS = 8_192;
  */
 export const DEFAULT_REQUEST_MAX_TOKENS = 16_384;
 
+/** Setting that caps the prompt VS Code builds for a model. */
+export const MAX_INPUT_TOKENS_SETTING = "empiriolabs.maxInputTokens";
+
+/** Default and lowest value of the prompt cap; must match package.json. */
+export const DEFAULT_MAX_INPUT_TOKENS = 262_144;
+export const MIN_MAX_INPUT_TOKENS = 8_192;
+
 /** Copilot Chat reads token usage from a data part with this MIME type. */
 export const USAGE_DATA_PART_MIME = "usage";

@@ -9,4 +9,5 @@ First release.
 - **Agent mode.** Models that support tool calling work in agent mode.
 - **Images.** Vision models accept images attached in chat.
 - **Thinking effort.** Models with adjustable reasoning offer a Thinking Effort setting in the model picker.
+- **Prompt size.** The `empiriolabs.maxInputTokens` setting sets the largest prompt sent to a model, 262,144 tokens by default. Raise it to use more of a model's context window.
 - **API key.** Add your key in the Language Models editor or with the `EmpirioLabs AI: Manage API Key` command.

@@ -76,6 +76,27 @@ describe("EmpirioLabs AI provider in VS Code", function () {
 			console.log(`      ${models.length} models; ${tools} with tool calling, ${images} with image input`);
 		});
 
+		it("caps prompts at the empiriolabs.maxInputTokens setting and follows changes", async () => {
+			assert.ok(models.every((m) => m.maxInputTokens <= 262_144), "default cap is 262,144");
+			const capped = models.find((m) => m.maxInputTokens === 262_144);
+			assert.ok(capped, "a model with a larger window is capped at the default");
+			const config = vscode.workspace.getConfiguration("empiriolabs");
+			await config.update("maxInputTokens", 524_288, vscode.ConfigurationTarget.Global);
+			try {
+				let raised = 0;
+				for (let attempt = 0; attempt < 30 && raised <= 262_144; attempt++) {
+					raised = (await vscode.lm.selectChatModels({ vendor: VENDOR, id: capped.id }))[0]?.maxInputTokens ?? 0;
+					if (raised <= 262_144) {
+						await sleep(500);
+					}
+				}
+				console.log(`      ${capped.id}: ${capped.maxInputTokens} by default, ${raised} with the setting at 524288`);
+				assert.ok(raised > 262_144 && raised <= 524_288, `raised cap applied without a reload (got ${raised})`);
+			} finally {
+				await config.update("maxInputTokens", undefined, vscode.ConfigurationTarget.Global);
+			}
+		});
+
 		it("streams a reply through the editor", async () => {
 			const model = models.find((m) => m.id === smokeModel);
 			assert.ok(model, `${smokeModel} is listed`);

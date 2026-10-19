@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { ModelCatalog } from "./catalog";
-import { API_KEY_PREFIX, API_KEYS_URL, DISPLAY_NAME, SECRET_STORAGE_KEY, VENDOR_ID } from "./constants";
+import { API_KEY_PREFIX, API_KEYS_URL, DISPLAY_NAME, MAX_INPUT_TOKENS_SETTING, SECRET_STORAGE_KEY, VENDOR_ID } from "./constants";
 import { type ApiKeyStore, EmpirioChatProvider } from "./provider";
 
 /** How often the catalog is read again so new models appear without a reload. */
@@ -102,6 +102,8 @@ export function activate(context: vscode.ExtensionContext): { setStoredKey(key: 
 	const fetchImpl = (input: string, init?: RequestInit): Promise<Response> => fetch(input, init);
 	const catalog = new ModelCatalog(fetchImpl, userAgent);
 	const provider = new EmpirioChatProvider(keys, catalog, fetchImpl, userAgent, log);
+	const readMaxInputTokens = (): unknown => vscode.workspace.getConfiguration().get<unknown>(MAX_INPUT_TOKENS_SETTING);
+	provider.setMaxInputTokens(readMaxInputTokens());
 
 	context.subscriptions.push(
 		output,
@@ -110,6 +112,12 @@ export function activate(context: vscode.ExtensionContext): { setStoredKey(key: 
 		context.secrets.onDidChange((event) => {
 			if (event.key === SECRET_STORAGE_KEY) {
 				provider.notifyChanged();
+			}
+		}),
+		vscode.workspace.onDidChangeConfiguration((event) => {
+			if (event.affectsConfiguration(MAX_INPUT_TOKENS_SETTING)) {
+				provider.setMaxInputTokens(readMaxInputTokens());
+				log(`prompt cap set to ${provider.promptCap} tokens`);
 			}
 		}),
 		vscode.commands.registerCommand("empiriolabs.manageApiKey", () => manageApiKey(keys)),
@@ -128,7 +136,7 @@ export function activate(context: vscode.ExtensionContext): { setStoredKey(key: 
 	}, CATALOG_REFRESH_MS);
 	context.subscriptions.push({ dispose: () => clearInterval(timer) });
 
-	log(`activated ${userAgent}`);
+	log(`activated ${userAgent}, prompt cap ${provider.promptCap} tokens`);
 
 	// Integration tests use this to exercise the stored-key path; it is not exposed otherwise.
 	if (context.extensionMode === vscode.ExtensionMode.Test) {

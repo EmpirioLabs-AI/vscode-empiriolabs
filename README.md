@@ -44,6 +44,8 @@ Both store the key in VS Code's secret storage. A key added both ways is listed 
 
 To show or hide models, use the eye icon in the Language Models editor. **EmpirioLabs AI: Refresh Models** reloads the list.
 
+**Prompt size.** VS Code sends at most 262,144 tokens (256K) of prompt to an EmpirioLabs AI model, even when the model's context window is larger. To use more of the window, raise the `empiriolabs.maxInputTokens` setting in your user settings. The change applies without a reload. A larger setting lets long agent sessions send more tokens, so they cost more.
+
 ## Commands
 
 | Command | Description |

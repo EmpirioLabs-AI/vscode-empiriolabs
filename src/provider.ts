@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import * as vscode from "vscode";
 import { type EmpirioModelInfo, type FetchLike, ModelCatalog } from "./catalog";
-import { API_BASE_URL, DEFAULT_REQUEST_MAX_TOKENS } from "./constants";
+import { API_BASE_URL, DEFAULT_MAX_INPUT_TOKENS, DEFAULT_REQUEST_MAX_TOKENS, MIN_MAX_INPUT_TOKENS } from "./constants";
 import { ToolNameMap, convertMessages, convertTools } from "./convert";
 import { EmpirioApiError, MissingApiKeyError, readErrorResponse } from "./errors";
 import { ChatStreamProcessor, consumeEventStream } from "./stream";
@@ -39,6 +39,25 @@ function keyHash(key: string): string {
 
 function positiveInt(value: unknown): number | undefined {
 	return typeof value === "number" && Number.isFinite(value) && value > 0 ? Math.floor(value) : undefined;
+}
+
+/** The prompt cap from the `empiriolabs.maxInputTokens` setting: the default when unset or invalid, never below the minimum. */
+export function normalizeMaxInputTokens(value: unknown): number {
+	if (typeof value !== "number" || !Number.isFinite(value)) {
+		return DEFAULT_MAX_INPUT_TOKENS;
+	}
+	return Math.max(MIN_MAX_INPUT_TOKENS, Math.floor(value));
+}
+
+/**
+ * A model's limits under the prompt cap: the input budget is the smaller of the catalog budget
+ * and the cap. The editor shows context use against the context window, so the window shrinks
+ * with the input budget instead of advertising room the editor will not fill.
+ */
+export function applyInputCap(model: EmpirioModelInfo, cap: number): EmpirioModelInfo {
+	const maxInputTokens = Math.min(model.maxInputTokens, cap);
+	const maxContextWindowTokens = Math.min(model.maxContextWindowTokens, maxInputTokens + model.maxOutputTokens);
+	return { ...model, capabilities: { ...model.capabilities }, maxInputTokens, maxContextWindowTokens };
 }
 
 /** The output budget for a request: the caller's value, else a default sized for agent work. */
@@ -112,6 +131,7 @@ export class EmpirioChatProvider implements vscode.LanguageModelChatProvider<Emp
 	/** Set when listing failed, so the next successful catalog read asks the editor to list again. */
 	private listingFailed = false;
 	private retryScheduled = false;
+	private maxInputTokens = DEFAULT_MAX_INPUT_TOKENS;
 
 	constructor(
 		private readonly keys: ApiKeyStore,
@@ -133,6 +153,23 @@ export class EmpirioChatProvider implements vscode.LanguageModelChatProvider<Emp
 	/** Ask the editor to list the models again. */
 	notifyChanged(): void {
 		this.changeEmitter.fire();
+	}
+
+	/** The prompt cap in effect. */
+	get promptCap(): number {
+		return this.maxInputTokens;
+	}
+
+	/**
+	 * Apply a new `empiriolabs.maxInputTokens` value. When the cap in effect changes, the editor
+	 * is asked to list the models again, so no reload is needed.
+	 */
+	setMaxInputTokens(value: unknown): void {
+		const next = normalizeMaxInputTokens(value);
+		if (next !== this.maxInputTokens) {
+			this.maxInputTokens = next;
+			this.notifyChanged();
+		}
 	}
 
 	/** Read the catalog again and tell the editor when the model list changed. */
@@ -228,7 +265,7 @@ export class EmpirioChatProvider implements vscode.LanguageModelChatProvider<Emp
 		const models = await this.catalog.getModels();
 		this.lastSignature = JSON.stringify(models);
 		return models.map((model) => {
-			const copy: EmpirioModelInfo = { ...model, capabilities: { ...model.capabilities } };
+			const copy = applyInputCap(model, this.maxInputTokens);
 			this.modelKeys.set(copy, apiKey);
 			return copy;
 		});

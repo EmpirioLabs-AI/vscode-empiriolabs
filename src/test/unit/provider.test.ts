@@ -2,7 +2,7 @@ import * as assert from "node:assert/strict";
 import * as vscode from "vscode";
 import { type EmpirioModelInfo, ModelCatalog } from "../../catalog";
 import { MissingApiKeyError } from "../../errors";
-import { type ApiKeyStore, EmpirioChatProvider, resolveMaxTokens } from "../../provider";
+import { type ApiKeyStore, EmpirioChatProvider, normalizeMaxInputTokens, resolveMaxTokens } from "../../provider";
 import { LIVE_CATALOG_SAMPLE } from "../fixtures/catalogSample";
 import { CancellationTokenSource } from "../vscodeMock";
 
@@ -301,5 +301,74 @@ describe("resolveMaxTokens", () => {
 		assert.equal(resolveMaxTokens(base, {}), 16_384);
 		assert.equal(resolveMaxTokens({ ...base, catalogDefaultMaxTokens: 65_536 }, undefined), 65_536);
 		assert.equal(resolveMaxTokens({ ...base, maxOutputTokens: 5_000 }, { max_tokens: 9_999 }), 5_000);
+	});
+});
+
+describe("prompt cap (empiriolabs.maxInputTokens)", () => {
+	const limits = (models: EmpirioModelInfo[], id: string) => {
+		const model = models.find((m) => m.id === id);
+		assert.ok(model, `${id} is listed`);
+		return [model.maxInputTokens, model.maxOutputTokens, model.maxContextWindowTokens];
+	};
+
+	it("reads the setting: default when unset or invalid, never below 8,192", () => {
+		assert.equal(normalizeMaxInputTokens(undefined), 262_144);
+		assert.equal(normalizeMaxInputTokens("large"), 262_144);
+		assert.equal(normalizeMaxInputTokens(Number.NaN), 262_144);
+		assert.equal(normalizeMaxInputTokens(1_000), 8_192);
+		assert.equal(normalizeMaxInputTokens(500_000.7), 500_000);
+	});
+
+	it("caps a 1M-context model at 262,144 prompt tokens by default", async () => {
+		const env = setup();
+		assert.equal(env.provider.promptCap, 262_144);
+		// The window shrinks with the prompt budget so context use is shown against what is sent.
+		assert.deepEqual(limits(await listGroup(env.provider), "glm-5-3"), [262_144, 131_072, 393_216]);
+	});
+
+	it("uses the model's own budget when the cap is raised above it", async () => {
+		const env = setup();
+		env.provider.setMaxInputTokens(2_000_000);
+		assert.deepEqual(limits(await listGroup(env.provider), "glm-5-3"), [868_928, 131_072, 1_000_000]);
+		env.provider.setMaxInputTokens(524_288);
+		assert.deepEqual(limits(await listGroup(env.provider), "glm-5-3"), [524_288, 131_072, 655_360]);
+	});
+
+	it("lowers every model to a smaller cap", async () => {
+		const env = setup();
+		env.provider.setMaxInputTokens(32_000);
+		const models = await listGroup(env.provider);
+		assert.deepEqual(limits(models, "glm-5-3"), [32_000, 131_072, 163_072]);
+		assert.deepEqual(limits(models, "perplexity-sonar"), [32_000, 8_192, 40_192]);
+		assert.ok(models.every((m) => m.maxInputTokens <= 32_000));
+		env.provider.setMaxInputTokens(10);
+		assert.equal(limits(await listGroup(env.provider), "glm-5-3")[0], 8_192);
+	});
+
+	it("leaves a model whose context window is smaller than the cap unchanged", async () => {
+		const env = setup();
+		const models = await listGroup(env.provider);
+		assert.deepEqual(limits(models, "perplexity-sonar"), [118_808, 8_192, 127_000]);
+		assert.deepEqual(limits(models, "deepreasoning"), [96_000, 32_000, 128_000]);
+	});
+
+	it("asks the editor to list again only when the cap in effect changes", () => {
+		const env = setup();
+		env.provider.setMaxInputTokens(262_144);
+		assert.equal(env.changes, 0, "same as the default");
+		env.provider.setMaxInputTokens(300_000);
+		assert.equal(env.changes, 1);
+		env.provider.setMaxInputTokens(300_000.4);
+		assert.equal(env.changes, 1, "rounds to the same cap");
+		env.provider.setMaxInputTokens(undefined);
+		assert.equal(env.changes, 2, "back to the default");
+		assert.equal(env.provider.promptCap, 262_144);
+	});
+
+	it("leaves the output budget alone", async () => {
+		const env = setup();
+		env.provider.setMaxInputTokens(16_000);
+		const glm = (await listGroup(env.provider)).find((m) => m.id === "glm-5-3")!;
+		assert.equal(resolveMaxTokens(glm, {}), 65_536);
 	});
 });

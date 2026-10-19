@@ -73,6 +73,18 @@
 				}
 			}
 		],
+		"configuration": {
+			"title": "EmpirioLabs AI",
+			"properties": {
+				"empiriolabs.maxInputTokens": {
+					"type": "number",
+					"default": 262144,
+					"minimum": 8192,
+					"scope": "application",
+					"description": "Largest prompt, in tokens, that VS Code sends to a model. Raise it to use more of a model's context window; long agent sessions cost more."
+				}
+			}
+		},
 		"commands": [
 			{
 				"command": "empiriolabs.manageApiKey",
