@@ -3,6 +3,11 @@ name: Release
 # Publishes to the Visual Studio Marketplace and Open VSX when a version tag is pushed,
 # for example `git tag v0.1.0 && git push origin v0.1.0`. The tag must match package.json.
 # Repository secrets: VSCE_PAT (Marketplace publisher token) and OVSX_PAT (Open VSX token).
+# A registry whose secret is not set is skipped, so a tag never fails on a missing token.
+# Note: Azure DevOps stops accepting all-organization PATs on 2026-12-01; switch the
+# Marketplace step to `vsce publish --azure-credential` (Microsoft Entra workload identity)
+# before then. Until a token exists, upload the .vsix artifact at
+# https://marketplace.visualstudio.com/manage/publishers/empiriolabs.
 
 on:
   push:
@@ -19,6 +24,9 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    env:
+      VSCE_PAT: ${{ secrets.VSCE_PAT }}
+      OVSX_PAT: ${{ secrets.OVSX_PAT }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -44,14 +52,12 @@ jobs:
         run: npx vsce package --out empiriolabs-vscode-chat.vsix
 
       - name: Publish to the Visual Studio Marketplace
+        if: ${{ env.VSCE_PAT != '' }}
         run: npx vsce publish --packagePath empiriolabs-vscode-chat.vsix --skip-duplicate
-        env:
-          VSCE_PAT: ${{ secrets.VSCE_PAT }}
 
       - name: Publish to Open VSX
+        if: ${{ env.OVSX_PAT != '' }}
         run: npx ovsx publish empiriolabs-vscode-chat.vsix --skip-duplicate
-        env:
-          OVSX_PAT: ${{ secrets.OVSX_PAT }}
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
