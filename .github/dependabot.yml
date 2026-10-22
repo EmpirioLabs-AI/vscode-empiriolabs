@@ -9,12 +9,23 @@ updates:
     cooldown:
       default-days: 7
   # The extension's own dependencies, and the locked registry publishers that
-  # the release workflow's publish job installs (.github/publish).
+  # the release workflow installs (publishers/). They live outside .github/
+  # because Dependabot cannot open pull requests for a package file there.
   - package-ecosystem: npm
     directories:
       - /
-      - /.github/publish
+      - /publishers
     schedule:
       interval: weekly
     cooldown:
       default-days: 7
+    ignore:
+      # @types/vscode follows engines.vscode and @types/node the Node.js in VS Code,
+      # so both move with the engine, by hand. A TypeScript major waits for a
+      # release that is tested end to end. Security updates still arrive.
+      - dependency-name: "@types/vscode"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]

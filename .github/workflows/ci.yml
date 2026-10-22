@@ -29,3 +29,13 @@ jobs:
 
       - name: Package
         run: npx vsce package --out empiriolabs-vscode-chat.vsix
+
+      # The registry publishers release.yml installs, from the same lockfile and the same
+      # way, so a change to publishers/ is tested before it reaches a release.
+      - name: Install the registry publishers from their lockfile
+        run: |
+          mkdir -p "$RUNNER_TEMP/publish"
+          cp publishers/package.json publishers/package-lock.json "$RUNNER_TEMP/publish/"
+          npm ci --ignore-scripts --no-audit --no-fund --prefix "$RUNNER_TEMP/publish"
+          "$RUNNER_TEMP/publish/node_modules/.bin/vsce" --version
+          "$RUNNER_TEMP/publish/node_modules/.bin/ovsx" --version

@@ -1,4 +1,5 @@
 .github/**
+publishers/**
 .vscode/**
 .vscode-test/**
 node_modules/**

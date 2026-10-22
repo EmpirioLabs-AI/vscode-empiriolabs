@@ -5,7 +5,7 @@ name: Release
 #
 # Three jobs, so nothing is installed in the job that can publish: `build` installs, tests
 # and packages with a read-only token and no secret, and uploads the .vsix; `publishers`
-# installs only the two registry publishers from .github/publish/package-lock.json (exact
+# installs only the two registry publishers from publishers/package-lock.json (exact
 # versions and integrity hashes, no install scripts), also without a secret, and uploads
 # them; `publish` runs in the `release` environment (v* tags only, approved by a
 # maintainer), installs nothing, and runs those publishers on that .vsix.
@@ -77,7 +77,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          sparse-checkout: .github/publish
+          sparse-checkout: publishers
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -87,7 +87,7 @@ jobs:
       - name: Install them from their lockfile
         run: |
           mkdir -p "$RUNNER_TEMP/publish"
-          cp .github/publish/package.json .github/publish/package-lock.json "$RUNNER_TEMP/publish/"
+          cp publishers/package.json publishers/package-lock.json "$RUNNER_TEMP/publish/"
           npm ci --ignore-scripts --no-audit --no-fund --prefix "$RUNNER_TEMP/publish"
           tar -C "$RUNNER_TEMP/publish" -czf "$RUNNER_TEMP/publishers.tgz" node_modules
 
