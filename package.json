@@ -2,7 +2,7 @@
 	"name": "empiriolabs-vscode-chat",
 	"displayName": "EmpirioLabs AI for Copilot Chat",
 	"description": "Use EmpirioLabs AI models in GitHub Copilot Chat, with streaming, tool calling for agent mode and image input.",
-	"version": "0.1.1",
+	"version": "0.1.2",
 	"publisher": "empiriolabs",
 	"license": "MIT",
 	"icon": "assets/icon.png",

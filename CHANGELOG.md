@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2
+
+- **Maintenance.** No functional changes.
+
 ## 0.1.1
 
 - **Open VSX.** The extension is also published on Open VSX. No functional changes.
