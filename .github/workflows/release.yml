@@ -2,9 +2,16 @@ name: Release
 
 # Publishes to the Visual Studio Marketplace and Open VSX when a version tag is pushed,
 # for example `git tag v0.1.0 && git push origin v0.1.0`. The tag must match package.json.
-# Repository secrets: VSCE_PAT (Marketplace publisher token) and OVSX_PAT (Open VSX token).
-# A registry whose secret is not set is skipped, so a tag never fails on a missing token.
-# Each token reaches only its own publish step; install, test and package run without them.
+#
+# Two jobs, so nothing installed for the build can reach a token: `build` installs,
+# tests and packages with a read-only token and no secret, and uploads the .vsix;
+# `publish` runs in the `release` environment (v* tags only, approved by a maintainer),
+# installs only the two registry publishers from .github/publish/package-lock.json
+# (exact versions and integrity hashes, no install scripts) and publishes that .vsix.
+#
+# Secrets: VSCE_PAT (Marketplace publisher token) and OVSX_PAT (Open VSX token).
+# A registry whose secret is not set is skipped, so a tag never fails on a missing token,
+# and each token reaches only its own publish step.
 # Note: Azure DevOps stops accepting all-organization PATs on 2026-12-01; switch the
 # Marketplace step to `vsce publish --azure-credential` (Microsoft Entra workload identity)
 # before then. Until a token exists, upload the .vsix artifact at
@@ -23,12 +30,9 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  publish:
+  build:
+    name: Test and package
     runs-on: ubuntu-latest
-    env:
-      # Whether each token is set, never the token itself.
-      HAS_VSCE_PAT: ${{ secrets.VSCE_PAT != '' }}
-      HAS_OVSX_PAT: ${{ secrets.OVSX_PAT != '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -55,19 +59,54 @@ jobs:
       - name: Package
         run: npx vsce package --out empiriolabs-vscode-chat.vsix
 
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: empiriolabs-vscode-chat-vsix
+          path: empiriolabs-vscode-chat.vsix
+          if-no-files-found: error
+
+  publish:
+    name: Publish to the registries
+    needs: build
+    runs-on: ubuntu-latest
+    environment: release
+    env:
+      # Whether each token is set, never the token itself.
+      HAS_VSCE_PAT: ${{ secrets.VSCE_PAT != '' }}
+      HAS_OVSX_PAT: ${{ secrets.OVSX_PAT != '' }}
+    steps:
+      - name: Check out the publishers' lockfile
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/publish
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          package-manager-cache: false
+
+      - name: Install the registry publishers from their lockfile
+        run: |
+          mkdir -p "$RUNNER_TEMP/publish"
+          cp .github/publish/package.json .github/publish/package-lock.json "$RUNNER_TEMP/publish/"
+          npm ci --ignore-scripts --no-audit --no-fund --prefix "$RUNNER_TEMP/publish"
+          echo "$RUNNER_TEMP/publish/node_modules/.bin" >> "$GITHUB_PATH"
+
+      - name: Download the package
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: empiriolabs-vscode-chat-vsix
+          path: ${{ runner.temp }}/vsix
+
       - name: Publish to the Visual Studio Marketplace
         if: ${{ env.HAS_VSCE_PAT == 'true' }}
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
-        run: npx vsce publish --packagePath empiriolabs-vscode-chat.vsix --skip-duplicate
+        run: vsce publish --packagePath "$RUNNER_TEMP/vsix/empiriolabs-vscode-chat.vsix" --skip-duplicate
 
       - name: Publish to Open VSX
         if: ${{ env.HAS_OVSX_PAT == 'true' }}
         env:
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
-        run: npx ovsx publish empiriolabs-vscode-chat.vsix --skip-duplicate
-
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: empiriolabs-vscode-chat-vsix
-          path: empiriolabs-vscode-chat.vsix
+        run: ovsx publish "$RUNNER_TEMP/vsix/empiriolabs-vscode-chat.vsix" --skip-duplicate

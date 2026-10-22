@@ -1,0 +1,10 @@
+{
+  "name": "empiriolabs-vscode-chat-publish",
+  "private": true,
+  "description": "The registry publishers that .github/workflows/release.yml runs, installed from package-lock.json with npm ci --ignore-scripts.",
+  "license": "MIT",
+  "dependencies": {
+    "@vscode/vsce": "4.0.0",
+    "ovsx": "1.2.0"
+  }
+}

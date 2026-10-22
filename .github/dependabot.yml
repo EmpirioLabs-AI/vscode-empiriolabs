@@ -1,0 +1,20 @@
+version: 2
+updates:
+  # Version updates wait until a release is a week old: a poisoned release is
+  # usually found and pulled within hours. Security updates are not delayed.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+  # The extension's own dependencies, and the locked registry publishers that
+  # the release workflow's publish job installs (.github/publish).
+  - package-ecosystem: npm
+    directories:
+      - /
+      - /.github/publish
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
