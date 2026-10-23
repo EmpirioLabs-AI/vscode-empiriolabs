@@ -1,13 +1,9 @@
 version: 2
 updates:
-  # Version updates wait until a release is a week old: a poisoned release is
-  # usually found and pulled within hours. Security updates are not delayed.
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
-    cooldown:
-      default-days: 7
   # The extension's own dependencies, and the locked registry publishers that
   # the release workflow installs (publishers/). They live outside .github/
   # because Dependabot cannot open pull requests for a package file there.
@@ -17,8 +13,6 @@ updates:
       - /publishers
     schedule:
       interval: weekly
-    cooldown:
-      default-days: 7
     ignore:
       # @types/vscode follows engines.vscode and @types/node the Node.js in VS Code,
       # so both move with the engine, by hand. A TypeScript major waits for a
