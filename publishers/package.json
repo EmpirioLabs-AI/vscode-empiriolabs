@@ -4,7 +4,7 @@
   "description": "The registry publishers that .github/workflows/release.yml runs, installed from package-lock.json with npm ci --ignore-scripts. Kept outside .github/ so Dependabot can open pull requests for them.",
   "license": "MIT",
   "dependencies": {
-    "@vscode/vsce": "4.0.0",
+    "@vscode/vsce": "4.1.0",
     "ovsx": "1.3.0"
   }
 }
